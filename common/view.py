@@ -31,7 +31,7 @@ class View:
         }
         view_method = view_methods.get(self.current_view)
         if view_method:
-            logger.info(f"Rendering view: {self.current_view}")
+            logger.debug(f"Rendering view: {self.current_view}")
             view_method(controller)
         else:
             raise ValueError(f"Unknown view type: {self.current_view}")
@@ -53,7 +53,12 @@ class View:
                     if topic == "": form.error("Please enter a topic")
                     else:
                         controller.set_view(self)
-                        controller.generate_quiz(topic)
+                        controller.generate_quiz(
+                            model=ss.model,
+                            provider=ss.provider,
+                            topic=topic,
+                            prompt_template=ss.current_prompt
+                        )
                         container.empty()
         else:
             container.error(f"View method render request but current view is not request, got {ss.current_view}")
@@ -87,12 +92,19 @@ class View:
                 controller.handle_quiz_progression()
                 self.canvas.empty()
             
+            if ss.lock and ss.answered_question and not quiz_submit:
+                controller.set_view(self)
+                index = ss.current_question_index
+                if index+1 >= len(ss.quiz.questions):
+                    self.show_results()
+                else:
+                    self.show_next_question()
+            
         else:
             form.error("Quiz has not been generated")
 
     
     def render_results_view(self, controller):
-        logger.info("This function is being called")
         container = self.canvas.empty()
         
         correct = ss.get('total_correct', 0)
@@ -104,7 +116,7 @@ class View:
             form.title("Results")
             form.write(f"Total Correct: {correct}")
             form.write(f"Total Incorrect: {incorrect}")
-            form.form_submit_button("Reset", on_click=self.reset_all_callback)
+            form.form_submit_button("Create New Quiz", on_click=self.reset_all_callback)
             
         else:
             form.error("View method render results but current view is not results")
@@ -132,7 +144,6 @@ class View:
         _next = progression.form_submit_button("Next", on_click=self.unlock_callback)
 
     def show_results_callback(self):
-        logger.info("Showing results")
         ss.current_view = Views.RESULTS
 
     def show_results(self):

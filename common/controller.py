@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit import session_state as ss
 from common.model import Quiz, Question, Views, Choice
+from common.genai import init_quiz_generator_chain, Provider, LLM
 import time
 
 
@@ -13,8 +14,9 @@ class Controller:
     
     Has utility functions to help accomplish logic by calling the view with parameters
     """
-    def __init__(self, quiz: Quiz):
-        self.quiz = quiz
+    def __init__(self):
+        if 'quiz' not in ss:
+            ss.quiz = None
         if 'current_question_index' not in ss:
             ss.current_question_index = 0
     
@@ -28,9 +30,19 @@ class Controller:
         else:
             raise ValueError("View has not been set")
     
-    def generate_quiz(self, topic):
-        self.quiz: Quiz = self.generate_quiz_from_topic(topic)
-        ss.quiz = self.quiz
+    def generate_quiz(
+        self,
+        model: LLM,
+        provider: Provider,
+        topic: str,
+        prompt_template: str
+    ):
+        ss.quiz = self.generate_quiz_from_topic(
+            model=model,
+            provider=provider,
+            topic=topic,
+            prompt_template=prompt_template
+        )
         ss.current_question_index = 0
         # Synchronize view
         ss.current_view = Views.QUIZ
@@ -39,30 +51,29 @@ class Controller:
     
     
     def answer_question(self, choice_key, curr_question: Question) -> bool:
+        ss.answered_question = True
         return curr_question.answer == choice_key
     
     
     def handle_quiz_progression(self):
-        if ss.current_question_index < len(self.quiz.questions) - 1:
+        if ss.current_question_index < len(ss.quiz.questions) - 1:
             ss.current_question_index += 1
             self.view.show_next_question()
         else:
             self.view.show_results()
     
     
-    def generate_quiz_from_topic(self, topic: str):
-        # Placeholder method to generate a quiz
-        return Quiz(
-            questions=[
-                Question(
-                    question=f"Sample Question about {topic}",
-                    choices=[
-                        Choice(key="A", value="Choice A"),
-                        Choice(key="B", value="Choice B"),
-                        Choice(key="C", value="Choice C"),
-                        Choice(key="D", value="Choice D"),
-                    ],
-                    answer="A"
-                )
-            ]
+    def generate_quiz_from_topic(
+        self, 
+        model: LLM,
+        provider: Provider,
+        topic: str,
+        prompt_template: str
+    ) -> Quiz:
+        chain = init_quiz_generator_chain(
+            provider,
+            model,
+            prompt_template,
+            prompt_name=ss.current_prompt_name
         )
+        return chain.invoke({"input": topic})
