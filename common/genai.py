@@ -74,5 +74,5 @@ def init_quiz_generator_chain(
         | ModelGateway.get_adapter(provider, model, temperature=0)
         | parser
     ).with_config({"run_name": f"Quiz Generator - {prompt_name}"})
-    logger.debug(f"Formatted Prompt Preview: {prompt.format(input="test")}")
+    logger.debug(f"Formatted Prompt Preview: {prompt.format(input='test')}")
     return chain
