@@ -86,3 +86,4 @@ urllib3==2.2.3
 uv==0.4.17
 watchdog==4.0.2
 yarl==1.13.1
+loguru==0.7.2
